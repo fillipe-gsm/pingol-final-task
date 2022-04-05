@@ -139,4 +139,85 @@ df_configuracao_tarifacao.createOrReplaceTempView(
     CONFIGURACAO_TARIFACAO_TABLE_NAME
 )
 
+
+# Answering questions
+# 1. Total de assinaturas ativas por produto
+# Se `data_cancelamento` é nulo, a assinatura está ativa
+df_1 = spark.sql(
+    f"""
+    SELECT
+        cod_produto, COUNT(*) AS num_active_signatures
+    FROM {ASSINATURAS_TABLE_NAME}
+    WHERE data_cancelamento IS NULL
+    GROUP BY cod_produto
+    """
+)
+# df_1.show()
+
+# 2. Total de assinaturas canceladas por produto
+# A lógica é o oposto da anterior
+df_2 = spark.sql(
+    f"""
+    SELECT
+        cod_produto, COUNT(*) AS num_canceled_signatures
+    FROM {ASSINATURAS_TABLE_NAME}
+    WHERE data_cancelamento IS NOT NULL
+    GROUP BY cod_produto
+    """
+)
+# df_2.show()
+
+# 3. Total de usuários que nunca assinaram nenhum serviço
+# Use uma subquery para buscar os códigos de usuário da tabela de assinaturas
+# e depois filtre da tabela de usuários aquels que não estiverem lá
+df_3 = spark.sql(
+    f"""
+    SELECT
+        COUNT(codigo_usuario) AS num_users_without_signature
+    FROM {USUARIOS_TABLE_NAME}
+    WHERE codigo_usuario NOT IN (
+        SELECT
+            DISTINCT codigo_usuario
+        FROM {ASSINATURAS_TABLE_NAME}
+    )
+    """
+)
+# df_3.show()
+
+# 4. Total de usuários que possuem (ou já tiveram) mais de um serviço assinado
+# Em uma sub-query buscamos todos os usuários com mais de um serviço, i.e.,
+# aqueles cujo código aparece mais de uma vez. Em seguida, buscamos o total
+# de linhas nesta sub-query
+df_4 = spark.sql(
+    f"""
+    SELECT
+        COUNT(codigo_usuario)
+    FROM (
+        SELECT
+            codigo_usuario, COUNT(*)
+        FROM {ASSINATURAS_TABLE_NAME}
+        GROUP BY codigo_usuario
+        HAVING COUNT(*) > 1
+    )
+    """
+)
+# df_4.show()
+
+# 5. Quantidade de assinaturas ativas por região geográfica
+df_5 = spark.sql(
+    f"""
+    SELECT
+        COUNT(*) num_active_signatures, usuarios.cidade, usuarios.estado
+    FROM {ASSINATURAS_TABLE_NAME} assinaturas
+    INNER JOIN {USUARIOS_TABLE_NAME} usuarios ON assinaturas.codigo_usuario = usuarios.codigo_usuario
+    WHERE assinaturas.data_cancelamento IS NULL
+    GROUP BY usuarios.cidade, usuarios.estado
+    """
+)
+# df_5.show()
+
+# 6. Tarifações por região geográfica
+
+
+
 import ipdb; ipdb.set_trace()
