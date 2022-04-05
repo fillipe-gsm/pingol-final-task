@@ -6,14 +6,24 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     StructType, StructField, IntegerType, StringType, DateType, FloatType
 )
+import pandas as pd
 
 
 spark = SparkSession.builder.getOrCreate()
 
 ASSINATURAS_FILE_NAME = "data/assinaturas.csv"
 TRANSACOES_FILE_NAME = "data/transacoes.csv"
+PRODUTO_FILE_NAME = "data/produto.csv"
+USUARIOS_FILE_NAME = "data/usuarios.csv"
+METODO_PAGAMENTO_FILE_NAME = "data/metodo_pagamento.csv"
+CONFIGURACAO_TARIFACAO_FILE_NAME = "data/configuracao_tarifacao.csv"
+
 ASSINATURAS_TABLE_NAME = "assinaturas"
 TRANSACOES_TABLE_NAME = "transacoes"
+PRODUTO_TABLE_NAME = "produto"
+USUARIOS_TABLE_NAME = "usuarios"
+METODO_PAGAMENTO_TABLE_NAME = "metodo_pagamento"
+CONFIGURACAO_TARIFACAO_TABLE_NAME = "configuracao_tarifacao"
 
 # assinaturas data
 assinaturas_schema = StructType(
@@ -49,9 +59,6 @@ df_transacoes = spark.read.csv(
 )
 df_transacoes.createOrReplaceTempView(TRANSACOES_TABLE_NAME)
 
-PRODUTO_FILE_NAME = "data/produto.csv"
-PRODUTO_TABLE_NAME = "produto"
-
 # produto data
 produto_schema = StructType(
     [
@@ -65,9 +72,6 @@ df_produto = spark.read.csv(
     PRODUTO_FILE_NAME, sep=";", header=True, schema=produto_schema
 )
 df_produto.createOrReplaceTempView(PRODUTO_TABLE_NAME)
-
-USUARIOS_FILE_NAME = "data/usuarios.csv"
-USUARIOS_TABLE_NAME = "usuarios"
 
 # usuarios data
 usuarios_schema = StructType(
@@ -85,8 +89,6 @@ df_usuarios = spark.read.csv(
 )
 df_usuarios.createOrReplaceTempView(USUARIOS_TABLE_NAME)
 
-METODO_PAGAMENTO_FILE_NAME = "data/metodo_pagamento.csv"
-METODO_PAGAMENTO_TABLE_NAME = "metodo_pagamento"
 
 # metodo_pagamento data
 metodo_pagamento_schema = StructType(
@@ -103,14 +105,21 @@ df_metodo_pagamento = spark.read.csv(
 )
 df_metodo_pagamento.createOrReplaceTempView(METODO_PAGAMENTO_TABLE_NAME)
 
-CONFIGURACAO_TARIFACAO_FILE_NAME = "data/configuracao_tarifacao.csv"
-CONFIGURACAO_TARIFACAO_TABLE_NAME = "configuracao_tarifacao"
 
 # configuracao_tarifacao data
 # This data has a `valor_step` column with a comma (",") as decimal separator
 # I coult not find a way for Pyspark to handle that, so the suggested approach
 # is to first load it into a Pandas dataframe, save the handled data, and
 # import it again
+df_configuracao_tarifacao_pandas = pd.read_csv(
+    CONFIGURACAO_TARIFACAO_FILE_NAME, sep=";", decimal=","
+)
+configuracao_tarifacao_treated_file_name = "configuracao_tarifacao_treated.csv"
+df_configuracao_tarifacao_pandas.to_csv(
+    configuracao_tarifacao_treated_file_name, index=False, sep=";"
+)
+
+# Read the treated data
 configuracao_tarifacao_schema = StructType(
     [
         StructField("cod_produto", IntegerType(), False),
@@ -121,7 +130,7 @@ configuracao_tarifacao_schema = StructType(
     ]
 )
 df_configuracao_tarifacao = spark.read.csv(
-    CONFIGURACAO_TARIFACAO_FILE_NAME,
+    configuracao_tarifacao_treated_file_name,
     sep=";",
     header=True,
     schema=configuracao_tarifacao_schema,
@@ -129,6 +138,5 @@ df_configuracao_tarifacao = spark.read.csv(
 df_configuracao_tarifacao.createOrReplaceTempView(
     CONFIGURACAO_TARIFACAO_TABLE_NAME
 )
-
 
 import ipdb; ipdb.set_trace()
