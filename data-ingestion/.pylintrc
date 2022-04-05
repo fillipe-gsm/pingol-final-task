@@ -1,0 +1,4 @@
+[MASTER]
+init-hook='import sys; sys.path.append("/home/fillipe/.cache/pypoetry/virtualenvs/data-ingestion-PuW7dERO-py3.10/lib/python3.9/site-packages")'
+
+export PYTHONPATH=$PYTHONPATH:/home/fillipe/.cache/pypoetry/virtualenvs/data-ingestion-PuW7dERO-py3.10/lib/python3.9/site-packages

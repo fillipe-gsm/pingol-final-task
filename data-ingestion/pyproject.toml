@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "data-ingestion"
+version = "0.1.0"
+description = ""
+authors = ["Fillipe Goulart <fillipe.mendes@loggi.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+azure-storage-blob = "^12.11.0"
+dynaconf = "^3.1.7"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.1"
+ipython = "^8.2.0"
+ipdb = "^0.13.9"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

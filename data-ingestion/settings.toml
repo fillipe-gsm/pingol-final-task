@@ -1,0 +1,2 @@
+container_name = "datalakeatividadefinal138979"
+connection_string = "DefaultEndpointsProtocol=https;AccountName=contafinal138979;AccountKey=PGM89Ji1JBgxThJucQFnKsziWcSZpaCG1PYcQ1C9bQcKvOPMiyiRaJwqig/1Yg0Izk7pMX/ZNT5qRfgZSvcgBg==;EndpointSuffix=core.windows.net"
