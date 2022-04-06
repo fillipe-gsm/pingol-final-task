@@ -207,7 +207,7 @@ df_4 = spark.sql(
 df_5 = spark.sql(
     f"""
     SELECT
-        COUNT(*) num_active_signatures, usuarios.cidade, usuarios.estado
+        COUNT(*) AS num_active_signatures, usuarios.cidade, usuarios.estado
     FROM {ASSINATURAS_TABLE_NAME} assinaturas
     INNER JOIN {USUARIOS_TABLE_NAME} usuarios ON assinaturas.codigo_usuario = usuarios.codigo_usuario
     WHERE assinaturas.data_cancelamento IS NULL
@@ -217,7 +217,106 @@ df_5 = spark.sql(
 # df_5.show()
 
 # 6. Tarifações por região geográfica
+# A query abaixo mostra os valores de tarifação agrupados por cidade e estado
+df_6 = spark.sql(
+    f"""
+    SELECT
+        configuracao_tarifacao.valor_step, usuarios.cidade, usuarios.estado
+    FROM {ASSINATURAS_TABLE_NAME} assinaturas
+    INNER JOIN {USUARIOS_TABLE_NAME} usuarios ON assinaturas.codigo_usuario = usuarios.codigo_usuario
+    INNER JOIN {CONFIGURACAO_TARIFACAO_TABLE_NAME} configuracao_tarifacao ON assinaturas.cod_produto = configuracao_tarifacao.cod_produto
+    GROUP BY configuracao_tarifacao.valor_step, usuarios.cidade, usuarios.estado
+    ORDER BY usuarios.estado, usuarios.cidade
+    """
+)
+# df_6.show()
+
+# 7. Quais são os produtos com as maiores receitas
+# Primeira busca determinando receita total por produto e por step
+df_receitas_por_produto_por_step = spark.sql(
+    f"""
+    SELECT
+        configuracao_tarifacao.cod_produto,
+        configuracao_tarifacao.step_tarifacao,
+        SUM(configuracao_tarifacao.valor_step) AS value_per_product_per_step
+    FROM {TRANSACOES_TABLE_NAME} transacoes
+    INNER JOIN {CONFIGURACAO_TARIFACAO_TABLE_NAME} configuracao_tarifacao
+    ON (
+        configuracao_tarifacao.cod_produto = transacoes.cod_produto
+        AND configuracao_tarifacao.step_tarifacao = transacoes.step_tarifacao
+    )
+    GROUP BY configuracao_tarifacao.cod_produto, configuracao_tarifacao.step_tarifacao
+    ORDER BY configuracao_tarifacao.cod_produto, configuracao_tarifacao.step_tarifacao
+    """
+)
+
+df_receitas_por_produto_por_step.show()
+df_receitas_por_produto_por_step.createOrReplaceTempView("receita_por_produto_por_step")
+
+# Agrupa a receita por produto
+df_receitas_por_produto = spark.sql(
+    """
+    SELECT
+        cod_produto, SUM(value_per_product_per_step) AS value_per_product
+    FROM receita_por_produto_por_step
+    GROUP BY cod_produto
+    ORDER BY cod_produto
+    """
+)
+
+df_receitas_por_produto.createOrReplaceTempView("receita_por_produto")
+df_receitas_por_produto.show()
+
+# Com isso, os produtos com maiores e menores receitas são fáceis de serem
+# determinados
+df_min_receita = spark.sql(
+    """
+    SELECT
+        cod_produto, value_per_product
+    FROM receita_por_produto
+    ORDER BY value_per_product ASC
+    LIMIT 1
+    """
+)
+df_min_receita.show()
+
+df_max_receita = spark.sql(
+    """
+    SELECT
+        cod_produto, value_per_product
+    FROM receita_por_produto
+    ORDER BY value_per_product DESC
+    LIMIT 1
+    """
+)
+df_max_receita.show()
 
 
+# 10. Percentual dos métodos de pagamento por produto e mês (usuários pagam mais
+# com cartão de crédito, débito, PicPay ou mercado pago?)
+df_transacoes_por_produto_por_metodo = spark.sql(
+    f"""
+    SELECT
+        transacoes.cod_produto,
+        metodo_pagamento.metodo,
+        COUNT(*) AS num_transactions
+    FROM {TRANSACOES_TABLE_NAME} transacoes
+    INNER JOIN {METODO_PAGAMENTO_TABLE_NAME} metodo_pagamento
+    ON  transacoes.cod_metodo = metodo_pagamento.cod_metodo
+    GROUP BY transacoes.cod_produto, metodo_pagamento.metodo
+    ORDER BY transacoes.cod_produto, metodo_pagamento.metodo
+    """
+)
+
+df_transacoes_por_produto_por_metodo.show()
+
+# O restante das operações é melhor feito em Pandas
+df_transactions = df_transacoes_por_produto_por_metodo.toPandas()
+df_transactions["num_transactions_percentage"] = (
+    df_transactions["num_transactions"]
+    / df_transactions.groupby(
+        by="cod_produto"
+    )["num_transactions"].transform("sum")
+)
 
 import ipdb; ipdb.set_trace()
